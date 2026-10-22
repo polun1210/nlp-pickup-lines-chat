@@ -4,7 +4,7 @@ prepare_chat_data.py
 把 data/chat.jsonl 的完整多輪對話，展開成 TRL SFTTrainer 使用的
 prompt / completion 格式，並切成 train / validation。
 
-改寫自老師範例 cases/llm_finetune/prepare_chat_data.py，流程相同：
+流程：
 
     data/chat.jsonl（每行一段完整對話）
         ↓
@@ -69,7 +69,7 @@ VALID_RATIO = 0.1
 
 # prompt 最多保留最近幾則 user / assistant 訊息（system 另外保留）。
 #
-# 老師範例是 6；本作業的對話最多 4 輪 = 8 則。
+# 本專案的對話最多 4 輪 = 8 則。
 # 預測第 4 輪回答時，前文有 7 則（U1 A1 U2 A2 U3 A3 U4），
 # 設 6 會把開場的 U1 切掉，而 U1 常常是整段對話的情境（例如「她是咖啡師」）。
 # 設 8 就能保留完整前文。

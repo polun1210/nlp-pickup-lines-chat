@@ -4,9 +4,8 @@ build_corpus.py
 把 data/raw/ 底下各主題的多輪對話合併成一份 data/chat.jsonl，
 並在每段對話最前面加上統一的 system prompt。
 
-這支程式取代老師範例的 download_chat_data.py：
-老師的範例是從 Hugging Face 下載現成的咖啡點餐對話，
-本作業的土味情話語料是自己準備的，所以改成「合併 + 檢查」。
+土味情話沒有現成的多輪對話資料集，語料是依照 corpus_guidelines.md 自己準備的，
+所以這一步不是下載資料，而是「合併 + 檢查」。
 
     data/raw/campus.jsonl
     data/raw/food.jsonl          每行一段對話，只有 user / assistant
@@ -53,7 +52,7 @@ SYSTEM_PROMPT = (
     "你擅長把日常情境變成讓人會心一笑的情話，並且會根據前面的對話內容接話。"
 )
 
-# 作業要求至少 2 輪；語料規範是 3～4 輪。
+# 至少 2 輪才算多輪對話；語料規範是 3～4 輪。
 MIN_TURNS = 2
 MAX_TURNS = 6
 
@@ -140,7 +139,6 @@ def remove_duplicates(conversations):
     """
     開場問題（第一則 user）完全相同的對話只保留第一段。
 
-    和作業一的理由一樣：
     重複的對話如果同時被分到 train 和 valid，validation loss 會被灌水。
     """
 

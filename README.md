@@ -2,8 +2,12 @@
 
 用 4-bit QLoRA 微調 Qwen2.5-3B-Instruct，讓它變成一位會「接著前面的對話」繼續說情話的土味情話專家。
 
-改寫自課程的 `llm_finetune` 範例：範例訓練的是咖啡點餐助理，
-本作業換成自己準備的土味情話多輪對話語料，並把模型從 0.5B 放大到 1.5B 與 3B 做比較。
+**重點成果**
+
+- 沒有現成資料集：自訂語料規範，產生並驗證 400 段多輪對話（格式檢查、去重、簡體字檢查）
+- 16 GB 顯卡上以 QLoRA 只訓練約 1% 參數，3B 訓練約 8 分鐘
+- 訓練 1.5B 與 3B 兩個版本，用訓練時沒看過的對話、固定 seed 公平比較，最終採用 3B（validation loss 2.111 vs 2.351）
+- 照實記錄模型還做不好的地方與改進方向
 
 ## System prompt
 
@@ -14,8 +18,8 @@
 
 ## 訓練資料來源
 
-依照作業說明「跟 AI 平台討論來取得語料」，先寫好語料規範 [`corpus_guidelines.md`](corpus_guidelines.md)，
-再由 Claude 分 8 個主題產生多輪對話，最後用程式檢查格式、去重並抽樣人工檢查。
+土味情話沒有現成的多輪對話資料集。先寫好語料規範 [`corpus_guidelines.md`](corpus_guidelines.md)（格式、風格、接話規則），
+再由 Claude 依規範分 8 個主題產生多輪對話，最後用程式檢查格式、去重並人工抽查。
 
 | 主題 | 段數 | 主題 | 段數 |
 |---|--:|---|--:|
@@ -41,7 +45,7 @@
 
 ## 基礎模型
 
-- [Qwen/Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct)（作業交的版本）
+- [Qwen/Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct)（最終版本）
 - [Qwen/Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct)（比較用）
 
 ## 安裝套件
@@ -101,16 +105,16 @@ outputs/qwen25_3b_lora/（最佳 LoRA adapter）
 
 先以整段對話切 train / valid 再展開，同一段對話的所有展開資料只會在同一邊，避免資料洩漏（data leakage）。
 
-### 和老師範例相比改了什麼
+### 設計決策
 
-| 項目 | 範例 | 本作業 | 原因 |
-|---|---|---|---|
-| 資料 | 下載咖啡點餐資料集 | 自己準備的 400 段土味情話 | `download_chat_data.py` 改成 `build_corpus.py` |
-| 模型 | Qwen2.5-0.5B | Qwen2.5-3B（另訓練 1.5B 比較） | 0.5B 的中文創意不足 |
-| 精度 | FP16，LoRA 參數強制 FP32 | BF16 | 範例針對 Colab T4（不支援 BF16）；RTX 50 系列原生支援 |
-| LoRA rank | 8 | 16（alpha 32） | 模型較大、要學創意寫法 |
-| 保留的前文 | 最近 6 則訊息 | 最近 8 則 | 對話最多 4 輪 = 8 則，設 6 會切掉開場情境 |
-| 推論 | 單一模式 | `--demo`、`--base`、`--model` | 方便展示與對照微調前後 |
+| 項目 | 做法 | 原因 |
+|---|---|---|
+| 資料 | 自己準備的 400 段土味情話（`build_corpus.py` 合併 + 檢查） | 沒有現成的多輪情話資料集 |
+| 模型 | Qwen2.5-3B（另訓練 1.5B 比較） | 0.5B 的中文創意不足；3B 用 QLoRA 在 16 GB 放得下 |
+| 精度 | BF16 | RTX 50 系列原生支援，不需要 FP16 + FP32 的修補 |
+| LoRA rank | 16（alpha 32），所有 linear layer | 要學創意寫法，比常見預設 8 大一點 |
+| 保留的前文 | 最近 8 則訊息 | 對話最多 4 輪 = 8 則，設太短會切掉開場情境 |
+| 推論 | `--demo`、`--base`、`--model` | 方便展示，並用同一份模型對照微調前後 |
 
 ### 訓練設定
 
@@ -172,7 +176,7 @@ repo 已附上訓練好的 adapter，只想試聊的話，裝好套件後直接�
 專家：「今天最開心的事不是吃到飽，而是跟你一起吃了飽。」然後給他一個擁抱，結束時記得問一句：「有沒有想多坐久一點？」
 ```
 
-作業題目的範例情境（`python infer_lora_chat.py --demo`）的完整輸出：[`outputs/demo_3b_lora.txt`](outputs/demo_3b_lora.txt)
+展示對話（`python infer_lora_chat.py --demo`）的完整輸出：[`outputs/demo_3b_lora.txt`](outputs/demo_3b_lora.txt)
 
 ### 微調前後對照
 
@@ -222,7 +226,7 @@ repo 已附上訓練好的 adapter，只想試聊的話，裝好套件後直接�
 | adapter 大小 | 71 MB | 115 MB |
 | 實際對話 | 安全但平淡，常變成一般建議（「謝謝你今天願意陪我吃」） | 比較會用「鋪梗 → 反轉」接住上一輪（「我沒有在你們班，但我有在你心裡」） |
 
-因此作業交 3B 的版本。比較用的是 6 段 validation 對話、同一個 seed：[`outputs/compare_models.md`](outputs/compare_models.md)。
+因此最終採用 3B 的版本。比較用的是 6 段 validation 對話、同一個 seed：[`outputs/compare_models.md`](outputs/compare_models.md)。
 
 ### 還做不好的地方
 
@@ -251,7 +255,7 @@ repo 已附上訓練好的 adapter，只想試聊的話，裝好套件後直接�
 │   ├── chat.jsonl           合併後的 400 段對話
 │   └── sft/                 train.jsonl（1,104）、valid.jsonl（124）
 └── outputs/
-    ├── qwen25_3b_lora/      作業交的 adapter（adapter_model.safetensors 使用 Git LFS）
+    ├── qwen25_3b_lora/      最終版本的 adapter（adapter_model.safetensors 使用 Git LFS）
     ├── qwen25_15b_lora/     比較用的 1.5B adapter
     ├── compare_models.md
     └── demo_*.txt

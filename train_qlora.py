@@ -3,12 +3,11 @@ train_qlora.py
 
 用 4-bit QLoRA 微調 Qwen2.5-3B-Instruct（也可選 1.5B），讓它變成會多輪接話的土味情話專家。
 
-    python train_qlora.py               # 3B（作業交的版本）
+    python train_qlora.py               # 3B（最終版本）
     python train_qlora.py --model 1.5b  # 1.5B（比較用）
 
-改寫自老師範例 cases/llm_finetune/train_qlora.py。
-老師的範例針對 Colab Tesla T4（不支援 BF16）設計，
-本作業在 RTX 5070 Ti 上執行，所以改用 BF16，並拿掉 T4 專用的 FP32 修補。
+在 RTX 5070 Ti（16 GB）上執行，原生支援 BF16，
+不需要 Colab T4 這類舊顯卡常見的 FP16 + FP32 修補。
 
 整體流程：
 
@@ -27,11 +26,11 @@ train_qlora.py
     outputs/qwen25_3b_lora/（LoRA adapter + tokenizer，約 120 MB）
 
 ------------------------------------------------------------
-為什麼是 LoRA，不像作業一整個模型一起調？
+為什麼是 LoRA，不像 BERT 那樣整個模型一起調？
 ------------------------------------------------------------
 
-    作業一 BERT：1 億參數，全部更新，存檔 390 MB。
-    作業二 Qwen：15 億參數，全部更新需要的 GPU 記憶體遠超過 16 GB
+    BERT-base：1 億參數，全部更新，存檔 390 MB。
+    Qwen 1.5B ：15 億參數，全部更新需要的 GPU 記憶體遠超過 16 GB
                 （權重 + gradient + optimizer 狀態，大約是權重的 4～8 倍）。
 
 LoRA 的做法是凍結原本的權重 W，在旁邊加兩個很小的矩陣 A、B：
@@ -73,7 +72,7 @@ from trl import SFTConfig, SFTTrainer
 # Instruct 版本：已經學會「聽指令、照對話格式回答」，
 # 我們只需要教它新的說話風格，不用從頭教它怎麼對話。
 #
-# 兩個大小都訓練過並比較（compare_models.py），作業交的是 3B：
+# 兩個大小都訓練過並比較（compare_models.py），最終採用 3B：
 #
 #     python train_qlora.py              → 3B（預設）
 #     python train_qlora.py --model 1.5b → 1.5B
@@ -105,7 +104,7 @@ MAX_LENGTH = 768
 EPOCHS = 5
 
 # LoRA 只訓練很少的參數，常用的 learning rate 比全模型微調大很多
-# （作業一 BERT 用 3e-5；LoRA 常見 1e-4～2e-4）。
+# （BERT 全模型微調常用 3e-5；LoRA 常見 1e-4～2e-4）。
 # 語料只有一千多筆，取 1e-4 比較不容易過擬合。
 LEARNING_RATE = 1e-4
 
@@ -141,7 +140,7 @@ EARLY_STOPPING_PATIENCE = 3
 # =============================================================================
 
 # rank：A、B 矩陣的寬度，越大可學的東西越多，也越容易背答案。
-# 老師範例 0.5B 用 8；本作業模型較大、又要學創意寫法，提高到 16。
+# 常見預設是 8；本專案模型較大、又要學創意寫法，提高到 16。
 LORA_R = 16
 
 # 縮放係數，常見設定是 alpha = 2 × r。
@@ -277,7 +276,7 @@ def main():
         gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
         optim=OPTIM,
 
-        # RTX 50 系列原生支援 BF16，不需要老師範例裡 T4 的 FP16 + FP32 修補。
+        # RTX 50 系列原生支援 BF16，不需要 T4 那種 FP16 + FP32 修補。
         bf16=True,
 
         logging_steps=LOGGING_STEPS,

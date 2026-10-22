@@ -64,7 +64,7 @@ MAX_HISTORY_TURNS = 8
 
 SEED = 42
 
-# --demo 使用的多輪對話（第一段是作業題目裡的範例情境）。
+# --demo 使用的多輪對話。
 DEMO_CONVERSATIONS = [
     [
         "教我如何透過長相來認識女性朋友。",
