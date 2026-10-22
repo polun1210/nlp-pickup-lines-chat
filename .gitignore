@@ -1,0 +1,10 @@
+# Trainer 中途存的 checkpoint（含 optimizer 狀態，作業只交最佳 adapter）
+outputs/*/checkpoint-*/
+
+# 訓練與執行過程的終端機輸出
+*_log.txt
+train_log*.txt
+
+__pycache__/
+*.pyc
+.venv/
